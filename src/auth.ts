@@ -1,90 +1,55 @@
 import NextAuth from "next-auth";
 import "next-auth/jwt";
-
-import Apple from "next-auth/providers/apple";
-// import Atlassian from "next-auth/providers/atlassian"
 import Auth0 from "next-auth/providers/auth0";
-import AzureB2C from "next-auth/providers/azure-ad-b2c";
-import BankIDNorway from "next-auth/providers/bankid-no";
-import BoxyHQSAML from "next-auth/providers/boxyhq-saml";
-import Cognito from "next-auth/providers/cognito";
-import Coinbase from "next-auth/providers/coinbase";
-import Discord from "next-auth/providers/discord";
-import Dropbox from "next-auth/providers/dropbox";
-import Facebook from "next-auth/providers/facebook";
 import GitHub from "next-auth/providers/github";
-import GitLab from "next-auth/providers/gitlab";
 import Google from "next-auth/providers/google";
-import Hubspot from "next-auth/providers/hubspot";
 import LinkedIn from "next-auth/providers/linkedin";
-import MicrosoftEntraId from "next-auth/providers/microsoft-entra-id";
-import Netlify from "next-auth/providers/netlify";
-import Okta from "next-auth/providers/okta";
-import Passage from "next-auth/providers/passage";
-import Passkey from "next-auth/providers/passkey";
-import Pinterest from "next-auth/providers/pinterest";
-import Reddit from "next-auth/providers/reddit";
-import Slack from "next-auth/providers/slack";
-import Salesforce from "next-auth/providers/salesforce";
-import Spotify from "next-auth/providers/spotify";
-import Twitch from "next-auth/providers/twitch";
-import Twitter from "next-auth/providers/twitter";
-import WorkOS from "next-auth/providers/workos";
-import Zoom from "next-auth/providers/zoom";
+import Credentials from "next-auth/providers/credentials";
+import { z } from "zod";
+import { getUser } from "./app/actions/authenticate";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   debug: !!process.env.AUTH_DEBUG,
-  theme: { logo: "https://authjs.dev/img/logo-sm.png" },
   providers: [
-    Apple,
-    // Atlassian,
     Auth0,
-    AzureB2C,
-    BankIDNorway,
-    BoxyHQSAML({
-      clientId: "dummy",
-      clientSecret: "dummy",
-      issuer: process.env.AUTH_BOXYHQ_SAML_ISSUER,
-    }),
-    Cognito,
-    Coinbase,
-    Discord,
-    Dropbox,
-    Facebook,
     GitHub,
-    GitLab,
     Google,
-    Hubspot,
     LinkedIn,
-    MicrosoftEntraId,
-    Netlify,
-    Okta,
-    Passkey({
-      formFields: {
-        email: {
-          label: "Username",
-          required: true,
-          autocomplete: "username webauthn",
-        },
+    Credentials({
+      async authorize(credentials) {
+        const parsedCredentials = z
+          .object({ email: z.string().email(), password: z.string().min(6) })
+          .safeParse(credentials);
+
+        if (!parsedCredentials.success) {
+          return null;
+        }
+
+        const user = await getUser(parsedCredentials.data.email);
+        if (!user) {
+          return null;
+        }
+
+        return null;
       },
     }),
-    Passage,
-    Pinterest,
-    Reddit,
-    Salesforce,
-    Slack,
-    Spotify,
-    Twitch,
-    Twitter,
-    WorkOS({ connection: process.env.AUTH_WORKOS_CONNECTION! }),
-    Zoom,
   ],
+  pages: {
+    newUser: "/auth/sign-up",
+    signIn: "/auth/sign-in",
+  },
   basePath: "/auth",
   session: { strategy: "jwt" },
   callbacks: {
-    authorized({ request, auth }) {
-      const { pathname } = request.nextUrl;
-      if (pathname === "/middleware-example") return !!auth;
+    authorized({ request: { nextUrl }, auth }) {
+      const isLoggedIn = !!auth?.user;
+      const isOnDashboard = nextUrl.pathname.startsWith("/dashboard");
+      if (isOnDashboard) {
+        if (isLoggedIn) return true;
+        return false;
+      } else if (isLoggedIn) {
+        return Response.redirect(new URL("/dashboard", nextUrl));
+      }
       return true;
     },
     jwt({ token, trigger, session }) {
