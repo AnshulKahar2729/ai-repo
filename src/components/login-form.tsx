@@ -9,13 +9,8 @@ import { authenticate } from "~/app/actions/authenticate";
 export default function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-  const router = useRouter();
   const [errorMessage, formAction, isPending] = useActionState(authenticate, undefined);
 
-
-  if (!errorMessage && !isPending) {
-    router.replace(callbackUrl); // ✅ Trigger navigation on client-side
-  }
 
   return (
     <form
