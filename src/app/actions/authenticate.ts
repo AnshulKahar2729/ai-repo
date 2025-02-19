@@ -1,31 +1,36 @@
-'use server';
- 
-import { AuthError } from 'next-auth';
-import { signIn } from '~/auth';
- 
+"use server";
+
+import { AuthError } from "next-auth";
+import { redirect } from "next/navigation";
+import { signIn } from "~/auth";
+
 // ...
- 
+
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData,
 ) {
   try {
-    await signIn('credentials', formData);
+    // Extract email and password from FormData
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    if (!email || !password) {
+      return "Please enter both email and password.";
+    }
+
+    console.log("Authenticating with email:", email);
+    console.log("Authenticating with password:", password);
+
+    const result = await signIn("credentials", {
+      email,
+      password,
+    });
   } catch (error) {
     if (error instanceof AuthError) {
-      switch (error.type) {
-        case 'CredentialsSignin':
-          return 'Invalid credentials.';
-        default:
-          return 'Something went wrong.';
-      }
+      console.error("Authentication failed:", error.message);
+      return "Authentication failed.";
     }
     throw error;
   }
-}
-
-export async function getUser(email: string) {
-    return {
-        
-    }
 }

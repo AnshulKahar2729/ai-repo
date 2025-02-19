@@ -1,36 +1,53 @@
 import NextAuth from "next-auth";
 import "next-auth/jwt";
-import Auth0 from "next-auth/providers/auth0";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
+import { PrismaAdapter } from "@auth/prisma-adapter";
 import LinkedIn from "next-auth/providers/linkedin";
 import Credentials from "next-auth/providers/credentials";
-import { z } from "zod";
-import { getUser } from "./app/actions/authenticate";
+import { db } from "./server/db";
+import { signInSchema } from "./types/auth";
+import bcrypt from "bcryptjs"; // Import bcrypt for password hashing
+import { NextResponse } from "next/server";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  debug: !!process.env.AUTH_DEBUG,
+  adapter: PrismaAdapter(db),
   providers: [
-    Auth0,
     GitHub,
     Google,
     LinkedIn,
     Credentials({
       async authorize(credentials) {
-        const parsedCredentials = z
-          .object({ email: z.string().email(), password: z.string().min(6) })
-          .safeParse(credentials);
+        const { email, password } = await signInSchema.parseAsync(credentials);
+        console.log("Authenticating with email in auth.ts:", email);
+        // Check if the user exists
 
-        if (!parsedCredentials.success) {
-          return null;
-        }
+        let user = await db.user.findUnique({
+          where: { email },
+        });
 
-        const user = await getUser(parsedCredentials.data.email);
         if (!user) {
-          return null;
+          // If the user does not exist, create a new user
+          const hashedPassword = await bcrypt.hash(password, 10);
+
+          user = await db.user.create({
+            data: {
+              email,
+              password: hashedPassword, // Store the hashed password
+            },
+          });
         }
 
-        return null;
+        // Check if the password matches
+        if (!user?.password) {
+          throw new Error("Invalid email or password");
+        }
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+          throw new Error("Invalid email or password");
+        }
+
+        return { id: user.id, email: user.email };
       },
     }),
   ],
@@ -41,17 +58,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   basePath: "/auth",
   session: { strategy: "jwt" },
   callbacks: {
-    authorized({ request: { nextUrl }, auth }) {
-      const isLoggedIn = !!auth?.user;
-      const isOnDashboard = nextUrl.pathname.startsWith("/dashboard");
-      if (isOnDashboard) {
-        if (isLoggedIn) return true;
-        return false;
-      } else if (isLoggedIn) {
-        return Response.redirect(new URL("/dashboard", nextUrl));
-      }
-      return true;
+    async redirect({ baseUrl, url }) {
+      console.log("Redirect callback triggered, URL:", url, baseUrl);
+      return `${baseUrl}/dashboard`
     },
+
+    // authorized({ request: { nextUrl }, auth }) {
+    //   const isLoggedIn = !!auth?.user;
+    //   console.log("isLoggedIn in auth.ts:", isLoggedIn);
+    //   const isOnDashboard = nextUrl.pathname.startsWith("/dashboard");
+    //   if (isOnDashboard) {
+    //     if (isLoggedIn) return true;
+    //     return false;
+    //   } else if (isLoggedIn) {
+    //     return true;
+    //   }
+    //   return true;
+    // },
     jwt({ token, trigger, session }) {
       if (trigger === "update") token.name = session.user.name;
       return token;
