@@ -8,7 +8,6 @@ import Credentials from "next-auth/providers/credentials";
 import { db } from "./server/db";
 import { signInSchema } from "./types/auth";
 import bcrypt from "bcryptjs"; // Import bcrypt for password hashing
-import { NextResponse } from "next/server";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
