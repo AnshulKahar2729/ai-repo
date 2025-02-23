@@ -23,12 +23,14 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "~/components/ui/sidebar";
+import { useProject } from "~/hooks/use-project";
 import { cn } from "~/lib/utils";
 
 interface AppSidebarProps {}
 const AppSidebar: FC<AppSidebarProps> = ({}) => {
   const pathname = usePathname();
   const { open, setOpen } = useSidebar();
+  const { projects, projectId, setProjectId } = useProject();
   const items = [
     { title: "Dashboard", icon: LayoutDashboard, url: "/dashboard" },
     { title: "Q&A", icon: Bot, url: "/qa" },
@@ -36,11 +38,6 @@ const AppSidebar: FC<AppSidebarProps> = ({}) => {
     { title: "Billing", icon: CreditCard, url: "/billing" },
   ];
 
-  const projects = [
-    { name: "Project 1" },
-    { name: "Project 2" },
-    { name: "Project 3" },
-  ];
   return (
     <Sidebar collapsible="icon" variant="floating">
       <SidebarHeader>
@@ -90,15 +87,17 @@ const AppSidebar: FC<AppSidebarProps> = ({}) => {
           <SidebarGroupLabel>Your Projects</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {projects.map((project) => (
+              {projects?.map((project) => (
                 <SidebarMenuItem key={project.name}>
                   <SidebarMenuButton asChild>
-                    <div>
+                    <div onClick={()=> {
+                      setProjectId(project.id);
+                    }}>
                       <div
                         className={cn(
                           "flex size-6 items-center justify-center rounded-sm border bg-white text-sm text-primary",
                           {
-                            "bg-primary text-white": true,
+                            "bg-primary text-white": project.id === projectId,
                           },
                         )}
                       >

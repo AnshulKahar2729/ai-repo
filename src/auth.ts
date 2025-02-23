@@ -18,8 +18,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       async authorize(credentials) {
         const { email, password } = await signInSchema.parseAsync(credentials);
-        console.log("Authenticating with email in auth.ts:", email);
-        // Check if the user exists
 
         let user = await db.user.findUnique({
           where: { email },
@@ -52,14 +50,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   pages: {
     newUser: "/auth/sign-up",
-    signIn: "/auth/sign-in",
+    signIn: "/auth/login",
   },
-  basePath: "/auth",
+  basePath: "/api/auth",
   session: { strategy: "jwt" },
   callbacks: {
     async redirect({ baseUrl, url }) {
-      console.log("Redirect callback triggered, URL:", url, baseUrl);
-      return `${baseUrl}/dashboard`
+      return `${baseUrl}/dashboard`;
     },
 
     // authorized({ request: { nextUrl }, auth }) {
@@ -74,13 +71,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     //   }
     //   return true;
     // },
-    jwt({ token, trigger, session }) {
+    jwt({ token, trigger, session, user }) {
       if (trigger === "update") token.name = session.user.name;
+      if (user) {
+        token.id = user.id; // Store user ID in JWT token
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (token?.accessToken) session.accessToken = token.accessToken;
-
+      if (token?.id) {
+        session.user = { ...session.user, id: token.id as string };
+      }
       return session;
     },
   },
@@ -90,6 +93,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 declare module "next-auth" {
   interface Session {
     accessToken?: string;
+    user: {
+      id: string;
+    };
   }
 }
 
