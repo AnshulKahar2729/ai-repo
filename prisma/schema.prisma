@@ -2,13 +2,15 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-    provider = "prisma-client-js"
+    provider        = "prisma-client-js"
+    previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-    provider  = "postgresql"
-    url       = env("DATABASE_URL")
-    directUrl = env("DIRECT_URL")
+    provider   = "postgresql"
+    url        = env("DATABASE_URL")
+    directUrl  = env("DIRECT_URL")
+    extensions = [vector]
 }
 
 model User {
@@ -26,6 +28,7 @@ model User {
     createdAt     DateTime        @default(now())
     updatedAt     DateTime        @updatedAt
     UserToProject UserToProject[]
+    Question      Question[]
 }
 
 model Account {
@@ -88,11 +91,13 @@ model Project {
     name      String
     githubUrl String
 
-    deletedAt     DateTime?
-    createdAt     DateTime        @default(now())
-    updatedAt     DateTime        @updatedAt
-    UserToProject UserToProject[]
-    commits        Commit[]
+    deletedAt           DateTime?
+    createdAt           DateTime              @default(now())
+    updatedAt           DateTime              @updatedAt
+    UserToProject       UserToProject[]
+    commits             Commit[]
+    SourceCodeEmbedding SourceCodeEmbedding[]
+    Question            Question[]
 }
 
 model UserToProject {
@@ -109,16 +114,42 @@ model UserToProject {
 }
 
 model Commit {
-    id        String   @id @default(cuid())
-    commitMessage   String
-    commitHash     String
+    id                 String   @id @default(cuid())
+    commitMessage      String
+    commitHash         String
     commitAuthorName   String
-    commitAuthorAvatar  String
-    commitDate     DateTime
-    summary        String // ai generated summary
-    projectId String
-    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    commitAuthorAvatar String
+    commitDate         DateTime
+    summary            String // ai generated summary
+    projectId          String
+    project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    createdAt          DateTime @default(now())
+    updatedAt          DateTime @updatedAt
+}
+
+model Question {
+    id       String @id @default(cuid())
+    question String
+    answer   String
+
+    filesReferences Json?
+    projectId       String
+    project         Project @relation(fields: [projectId], references: [id])
+
+    userId    String
+    user      User     @relation(fields: [userId], references: [id])
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 }
 
+model SourceCodeEmbedding {
+    id String @id @default(cuid())
+
+    summaryEmbedding Unsupported("vector(768)")?
+    sourceCode       String
+    fileName         String
+    summary          String
+
+    projectId String
+    project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}

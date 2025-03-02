@@ -5,12 +5,13 @@ import Link from "next/link";
 import React from "react";
 import { useProject } from "~/hooks/use-project";
 import CommmitLog from "./commit-log";
+import { AskQuestionCard } from "./ask-question-card";
 
 export default function Page() {
   const { project } = useProject();
 
   return (
-    <div>
+    <div className="p-4 h-full">
       <div className="flex flex-wrap items-center justify-between gap-y-4">
 
         {/* project github link */}
@@ -43,7 +44,7 @@ export default function Page() {
 
       <div className="mt-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-5 ">
-          AskQuestionsCard
+          <AskQuestionCard/>
           MeetingCard
         </div>
       </div>
