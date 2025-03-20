@@ -1,12 +1,27 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Document } from "@langchain/core/documents";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
-});
+const apiKeys = [
+  process.env.GEMINI_API_KEY_1!,
+  process.env.GEMINI_API_KEY_2!,
+  process.env.GEMINI_API_KEY_3!
+];
+
+let keyIndex = 0;
+
+const getNextApiKey = () => {
+  const key = apiKeys[keyIndex];
+  keyIndex = (keyIndex + 1) % apiKeys.length;
+  return key || "";
+};
+
+const getGenAIModel = (modelName: string) => {
+  const genAI = new GoogleGenerativeAI(getNextApiKey());
+  return genAI.getGenerativeModel({ model: modelName });
+};
 
 export const aiSummarizeCommits = async (diff: string) => {
+  const model = getGenAIModel("gemini-1.5-flash");
   const response = await model.generateContent([
     `You are an expert programmer and you are trying to summarize a git diff. Reminders about the git diff format:
         For every file, there are a few metadata, like (for example):
@@ -48,7 +63,7 @@ export const aiSummarizeCode = async (doc: Document) => {
 
   try {
     const code = doc.pageContent.slice(0, 10000);
-
+    const model = getGenAIModel("gemini-1.5-flash");
     const response = await model.generateContent([
       `You are an intelligent senior software engineer who specializes in onboarding junior software engineers onto projects. You are onboarding a junior software engineer and explaining to them the purpose of the ${doc.metadata.source} file. Here is the code : 
         ---
@@ -67,12 +82,8 @@ export const aiSummarizeCode = async (doc: Document) => {
 };
 
 export const generateEmbedding = async (summary: string) => {
-  const model = genAI.getGenerativeModel({
-    model: "text-embedding-004",
-  });
-
+  const model = getGenAIModel("text-embedding-004");
   const result = await model.embedContent([summary]);
-  const embedding = result.embedding;
+  return result.embedding.values;
 
-  return embedding.values;
 };
